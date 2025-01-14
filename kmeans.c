@@ -62,8 +62,8 @@ void cal_axises_unit()
 
    // x_unit = biggest_x / 10;
    // y_unit = biggest_y / 10;
-   x_unit = ceil((double)biggest_x / 10);
-   y_unit = ceil((double)biggest_y / 10);
+   x_unit = ceil(abs((double)biggest_x / 10));
+   y_unit = ceil(abs((double)biggest_y / 10));
    if (x_unit == 0) x_unit = 1;
    if (y_unit == 0) y_unit = 1;
 

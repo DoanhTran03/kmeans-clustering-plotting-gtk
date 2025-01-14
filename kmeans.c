@@ -399,7 +399,7 @@ static void activate(GtkApplication *app, gpointer user_data) {
     gtk_window_set_title(GTK_WINDOW(window), "K-Means Visualization");
 
     GtkWidget *drawing_area = gtk_drawing_area_new();
-    gtk_drawing_area_set_content_width(GTK_DRAWING_AREA(drawing_area), 800);
+    gtk_drawing_area_set_content_width(GTK_DRAWING_AREA(drawing_area), 950);
     gtk_drawing_area_set_content_height(GTK_DRAWING_AREA(drawing_area), 800);
     gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(drawing_area), draw_visualization, NULL, NULL);
     gtk_window_set_child(GTK_WINDOW(window), drawing_area);

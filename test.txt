@@ -1,0 +1,90 @@
+#include <gtk/gtk.h>
+#include <cairo.h>
+
+// Structure to hold animation data
+typedef struct {
+    int x_pos;          // Current x-position of the circle
+    int y_pos;          // Current y-position of the circle
+    int x_speed;        // Speed of the circle along the x-axis
+    int y_speed;        // Speed of the circle along the y-axis
+    int radius;         // Radius of the circle
+    int window_width;   // Width of the window
+    int window_height;  // Height of the window
+} AnimationData;
+
+// Draw callback function
+static gboolean on_draw(GtkDrawingArea *area, cairo_t *cr, int width, int height, gpointer user_data) {
+    AnimationData *data = (AnimationData *)user_data;
+
+    // Clear the screen
+    cairo_set_source_rgb(cr, 0.9, 0.9, 0.9); // Light gray background
+    cairo_paint(cr);
+
+    // Draw the animated circle
+    cairo_set_source_rgb(cr, 0.2, 0.4, 0.8); // Blue circle
+    cairo_arc(cr, data->x_pos, data->y_pos, data->radius, 0, 2 * G_PI);
+    cairo_fill(cr);
+
+    return TRUE;
+}
+
+// Timeout callback function to update animation
+static gboolean on_timeout(gpointer user_data) {
+    AnimationData *data = (AnimationData *)user_data;
+
+    // Update the position of the circle
+    data->x_pos += data->x_speed;
+    data->y_pos += data->y_speed;
+
+    // Bounce the circle off the edges of the window
+    if (data->x_pos - data->radius < 0 || data->x_pos + data->radius > data->window_width) {
+        data->x_speed = -data->x_speed;
+    }
+    if (data->y_pos - data->radius < 0 || data->y_pos + data->radius > data->window_height) {
+        data->y_speed = -data->y_speed;
+    }
+
+    // Redraw the window
+    gtk_widget_queue_draw(GTK_WIDGET(data->window_width));
+
+    return G_SOURCE_CONTINUE; // Continue calling this function
+}
+
+int main(int argc, char *argv[]) {
+    // Initialize GTK
+    gtk_init();
+
+    // Create the main application window
+    GtkWidget *window = gtk_window_new();
+    gtk_window_set_title(GTK_WINDOW(window), "GTK4 Animation with Cairo");
+    gtk_window_set_default_size(GTK_WINDOW(window), 800, 600);
+
+    // Create a drawing area
+    GtkWidget *drawing_area = gtk_drawing_area_new();
+    gtk_window_set_child(GTK_WINDOW(window), drawing_area);
+
+    // Initialize animation data
+    AnimationData animation_data = {
+        .x_pos = 100,
+        .y_pos = 100,
+        .x_speed = 5,
+        .y_speed = 3,
+        .radius = 30,
+        .window_width = 800,
+        .window_height = 600
+    };
+
+    // Connect the draw signal
+    g_signal_connect(drawing_area, "draw", G_CALLBACK(on_draw), &animation_data);
+
+    // Add a timeout to update the animation
+    g_timeout_add(16, on_timeout, &animation_data); // 16 ms ~ 60 FPS
+
+    // Show the window
+    gtk_window_present(GTK_WINDOW(window));
+
+    // Run the main loop
+    gtk_main();
+
+    return 0;
+}

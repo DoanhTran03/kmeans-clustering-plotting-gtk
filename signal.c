@@ -3,6 +3,7 @@
 #include <signal.h>
 #include <cairo.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 // Structure for animation data
 typedef struct {
@@ -13,6 +14,7 @@ typedef struct {
     int x_speed;        // Speed of the circle's horizontal movement
     int y_speed;        // Speed of the circle's vertical movement
     double r, g, b;     // Current color (red, green, blue) of the circle
+    int timer_interval; // Timer interval in milliseconds
     GtkWidget *drawing_area; // Pointer to the drawing area widget
 } AnimationData;
 
@@ -89,34 +91,50 @@ gboolean timer_callback(gpointer user_data) {
 
 // Application activate callback
 static void on_activate(GtkApplication *app, gpointer user_data) {
+    AnimationData *animation_data = (AnimationData *)user_data;
+
     // Create the main application window
     GtkWidget *window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(window), "DVD Logo Animation with Color Change");
-    gtk_window_set_default_size(GTK_WINDOW(window), 800, 600);
+    gtk_window_set_default_size(GTK_WINDOW(window), animation_data->width, animation_data->height);
 
     // Create a drawing area
     GtkWidget *drawing_area = gtk_drawing_area_new();
     gtk_window_set_child(GTK_WINDOW(window), drawing_area);
-
-    // Initialize animation data
-    AnimationData *animation_data = g_new(AnimationData, 1);
-    animation_data->width = 800;
-    animation_data->height = 600;
-    animation_data->x_pos = 0;
-    animation_data->y_pos = 0;
-    animation_data->x_speed = 5;
-    animation_data->y_speed = 3; // Vertical speed for the bouncing effect
-    generate_random_color(&animation_data->r, &animation_data->g, &animation_data->b); // Initial random color
     animation_data->drawing_area = drawing_area;
 
     // Set the draw function
     gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(drawing_area), draw_func, animation_data, NULL);
 
     // Add a timer for periodic updates
-    g_timeout_add(16, timer_callback, animation_data); // ~60 FPS
+    g_timeout_add(animation_data->timer_interval, timer_callback, animation_data);
 
     // Show the window
     gtk_window_present(GTK_WINDOW(window));
+}
+
+// Command-line handler for GtkApplication
+static int on_command_line(GApplication *app, GApplicationCommandLine *cmdline, gpointer user_data) {
+    int argc;
+    char **argv = g_application_command_line_get_arguments(cmdline, &argc);
+
+    if (argc != 2) {
+        g_printerr("Usage: %s <framerate>\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    int framerate = atoi(argv[1]);
+    if (framerate <= 0) {
+        g_printerr("Error: Invalid framerate '%s'. Must be a positive integer.\n", argv[1]);
+        return EXIT_FAILURE;
+    }
+
+    // Calculate timer interval
+    AnimationData *animation_data = (AnimationData *)user_data;
+    animation_data->timer_interval = 1000 / framerate;
+
+    g_application_activate(app); // Activate the application
+    return EXIT_SUCCESS;
 }
 
 // Main function
@@ -130,11 +148,25 @@ int main(int argc, char *argv[]) {
     sigaddset(&sigset, SIGALRM);
     pthread_sigmask(SIG_BLOCK, &sigset, NULL);
 
-    // Create a GtkApplication
-    GtkApplication *app = gtk_application_new("com.example.DVDLogoAnimation", G_APPLICATION_FLAGS_NONE);
+    // Initialize animation data
+    AnimationData animation_data = {
+        .width = 800,
+        .height = 600,
+        .x_pos = 0,
+        .y_pos = 0,
+        .x_speed = 5,
+        .y_speed = 3,
+        .timer_interval = 16 // Default to ~60 FPS if no input is provided
+    };
+    generate_random_color(&animation_data.r, &animation_data.g, &animation_data.b);
 
-    // Connect the activate signal
-    g_signal_connect(app, "activate", G_CALLBACK(on_activate), NULL);
+    // Create a GtkApplication with command-line handling
+    GtkApplication *app = gtk_application_new("com.example.DVDLogoAnimation",
+                                              G_APPLICATION_HANDLES_COMMAND_LINE);
+
+    // Connect signals
+    g_signal_connect(app, "activate", G_CALLBACK(on_activate), &animation_data);
+    g_signal_connect(app, "command-line", G_CALLBACK(on_command_line), &animation_data);
 
     // Run the application
     int status = g_application_run(G_APPLICATION(app), argc, argv);

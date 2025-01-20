@@ -2,27 +2,38 @@
 #include <pthread.h>
 #include <signal.h>
 #include <cairo.h>
+#include <stdlib.h>
 
 // Structure for animation data
 typedef struct {
     int width;          // Width of the drawing area
     int height;         // Height of the drawing area
-    int x_pos;          // Current x-position of the rectangle
-    int speed;          // Speed of the rectangle's movement
+    int x_pos;          // Current x-position of the circle
+    int y_pos;          // Current y-position of the circle
+    int x_speed;        // Speed of the circle's horizontal movement
+    int y_speed;        // Speed of the circle's vertical movement
+    double r, g, b;     // Current color (red, green, blue) of the circle
     GtkWidget *drawing_area; // Pointer to the drawing area widget
 } AnimationData;
+
+// Function to generate a random color
+void generate_random_color(double *r, double *g, double *b) {
+    *r = (double)rand() / RAND_MAX;
+    *g = (double)rand() / RAND_MAX;
+    *b = (double)rand() / RAND_MAX;
+}
 
 // Draw function for GtkDrawingArea
 void draw_func(GtkDrawingArea *area, cairo_t *cr, int width, int height, gpointer user_data) {
     AnimationData *data = (AnimationData *)user_data;
 
-    // Clear the background
-    cairo_set_source_rgb(cr, 0.9, 0.9, 0.9); // Light gray background
+    // Clear the background to black
+    cairo_set_source_rgb(cr, 0.0, 0.0, 0.0); // Black background
     cairo_paint(cr);
 
-    // Draw the animated rectangle
-    cairo_set_source_rgb(cr, 0.2, 0.4, 0.8); // Blue rectangle
-    cairo_rectangle(cr, data->x_pos, height / 4, 100, 100);
+    // Draw the animated circle with the current color
+    cairo_set_source_rgb(cr, data->r, data->g, data->b); // Circle color
+    cairo_arc(cr, data->x_pos + 50, data->y_pos + 50, 50, 0, 2 * G_PI); // Circle
     cairo_fill(cr);
 }
 
@@ -37,12 +48,22 @@ void *animation_thread(void *ptr) {
     while (1) {
         siginfo_t info;
         if (sigwaitinfo(&sigset, &info) > 0) {
-            // Update the x-position of the rectangle
-            data->x_pos += data->speed;
+            // Update the x-position and y-position of the circle
+            data->x_pos += data->x_speed;
+            data->y_pos += data->y_speed;
 
-            // Bounce off the edges
+            // Bounce off horizontal edges
             if (data->x_pos + 100 > data->width || data->x_pos < 0) {
-                data->speed = -data->speed;
+                data->x_speed = -data->x_speed;
+                // Change color
+                generate_random_color(&data->r, &data->g, &data->b);
+            }
+
+            // Bounce off vertical edges
+            if (data->y_pos + 100 > data->height || data->y_pos < 0) {
+                data->y_speed = -data->y_speed;
+                // Change color
+                generate_random_color(&data->r, &data->g, &data->b);
             }
 
             // Queue a redraw on the main thread
@@ -70,7 +91,7 @@ gboolean timer_callback(gpointer user_data) {
 static void on_activate(GtkApplication *app, gpointer user_data) {
     // Create the main application window
     GtkWidget *window = gtk_application_window_new(app);
-    gtk_window_set_title(GTK_WINDOW(window), "GTK4 Animation");
+    gtk_window_set_title(GTK_WINDOW(window), "DVD Logo Animation with Color Change");
     gtk_window_set_default_size(GTK_WINDOW(window), 800, 600);
 
     // Create a drawing area
@@ -82,7 +103,10 @@ static void on_activate(GtkApplication *app, gpointer user_data) {
     animation_data->width = 800;
     animation_data->height = 600;
     animation_data->x_pos = 0;
-    animation_data->speed = 5;
+    animation_data->y_pos = 0;
+    animation_data->x_speed = 5;
+    animation_data->y_speed = 3; // Vertical speed for the bouncing effect
+    generate_random_color(&animation_data->r, &animation_data->g, &animation_data->b); // Initial random color
     animation_data->drawing_area = drawing_area;
 
     // Set the draw function
@@ -97,6 +121,9 @@ static void on_activate(GtkApplication *app, gpointer user_data) {
 
 // Main function
 int main(int argc, char *argv[]) {
+    // Seed the random number generator
+    srand(time(NULL));
+
     // Block SIGALRM in the main thread
     sigset_t sigset;
     sigemptyset(&sigset);
@@ -104,7 +131,7 @@ int main(int argc, char *argv[]) {
     pthread_sigmask(SIG_BLOCK, &sigset, NULL);
 
     // Create a GtkApplication
-    GtkApplication *app = gtk_application_new("com.example.GtkAnimation", G_APPLICATION_FLAGS_NONE);
+    GtkApplication *app = gtk_application_new("com.example.DVDLogoAnimation", G_APPLICATION_FLAGS_NONE);
 
     // Connect the activate signal
     g_signal_connect(app, "activate", G_CALLBACK(on_activate), NULL);

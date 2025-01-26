@@ -163,6 +163,42 @@ void draw_visualization(GtkDrawingArea *area, cairo_t *cr, int width, int height
     cairo_line_to(cr, 425, 800);
     cairo_stroke(cr);
 
+    // Dynamic X-axis grid and labels
+    for (int i = -12; i <= 12; i++) { // Change range dynamically based on your requirements
+        double* pos = cal_rel_origin(i * x_unit, 0);
+        double x = pos[0];
+
+        cairo_move_to(cr, x, origin_cord[1] - 5);
+        cairo_line_to(cr, x, origin_cord[1] + 5);
+        cairo_stroke(cr);
+
+        // Draw the label
+        cairo_set_font_size(cr, 12.0);
+        char label[10];
+        sprintf(label, "%d", i * x_unit);
+        cairo_move_to(cr, x - 10, origin_cord[1] + 20);
+        cairo_show_text(cr, label);
+    }
+
+    // Dynamic Y-axis grid and labels
+    for (int i = -12; i <= 12; i++) {
+        if (i == 0) continue;
+
+        double* pos = cal_rel_origin(0, i * y_unit);
+        double y = pos[1];
+
+        cairo_move_to(cr, origin_cord[0] - 5, y);
+        cairo_line_to(cr, origin_cord[0] + 5, y);
+        cairo_stroke(cr);
+
+        // Draw the label
+        cairo_set_font_size(cr, 12.0);
+        char label[10];
+        sprintf(label, "%d", i * y_unit);
+        cairo_move_to(cr, origin_cord[0] + 10, y + 5);
+        cairo_show_text(cr, label);
+    }
+
     for (int i = 0; i < n_points; i++) {
         set_cluster_color(cr, assignments[i]);
         double *pos = cal_rel_origin(data_points[i].x, data_points[i].y);

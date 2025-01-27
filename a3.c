@@ -14,6 +14,12 @@ typedef struct {
     double y;
 } Point;
 
+typedef struct {
+    int r;  // Red
+    int g;  // Green
+    int b;  // Blue
+} RGBColor;
+
 // Global Variables
 Point *data_points = NULL;
 int n_points;
@@ -46,6 +52,7 @@ static void activate(GtkApplication *app, gpointer user_data);
 // Randomly initialize centroids (Lloyd-Forgy initialization)
 void initialize_centroids() {
     srand(time(NULL));
+    
     for (int i = 0; i < n_centroids; i++) {
         int random_index = rand() % n_points;
         centroids[i].x = data_points[random_index].x;
@@ -81,7 +88,6 @@ void read_data(const char *filename) {
     }
 
     fscanf(file, "%d", &n_points);
-    g_print("Has reached here");
     data_points = (Point *)malloc(n_points * sizeof(Point));
     assignments = (int *)malloc(n_points * sizeof(int));
 
@@ -90,7 +96,6 @@ void read_data(const char *filename) {
     }
 
     fscanf(file, "%d", &n_centroids);
-    g_print("The number of centroid is %d", n_centroids);
     centroids = (Point *)malloc(n_centroids * sizeof(Point));
     initialize_centroids();
 
@@ -306,15 +311,6 @@ gboolean on_timer(gpointer user_data) {
     return G_SOURCE_CONTINUE;
 }
 
-static void open_app(GApplication *app, GFile **files, int n_files, const char *hint) {
-    if (n_files > 0) {
-        const char *filename = g_file_get_path(files[0]);
-        read_data(filename);
-        cal_axises_unit();
-    }
-    g_application_activate(app);
-}
-
 static void activate(GtkApplication *app, gpointer user_data) {
     if (!data_points || !centroids) {
         fprintf(stderr, "Error: No data loaded. Please provide a valid data file.\n");
@@ -336,10 +332,42 @@ static void activate(GtkApplication *app, gpointer user_data) {
     gtk_window_present(GTK_WINDOW(window));
 }
 
+static int on_command_line(GApplication *app, GApplicationCommandLine *cmdline, gpointer user_data) {
+    int argc;
+    char **argv = g_application_command_line_get_arguments(cmdline, &argc);
+
+    if (argc != 3) {
+        g_printerr("Usage: %s <data_file> <framerate>\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    const char *data_file = argv[1];
+    int framerate = atoi(argv[2]);
+
+    g_print("%s\n", data_file);
+
+    g_print("%d\n", framerate);
+
+    if (framerate <= 0) {
+        g_printerr("Error: Invalid framerate '%s'. Must be a positive integer.\n", argv[2]);
+        return EXIT_FAILURE;
+    }
+
+    read_data(data_file);
+
+    cal_axises_unit();
+    animation_rate = framerate;
+
+    g_print("%d\n", animation_rate);
+
+    g_application_activate(app);
+    return EXIT_SUCCESS;
+}
+
 int main(int argc, char *argv[]) {
-    GtkApplication *app = gtk_application_new("com.example.kmeans", G_APPLICATION_HANDLES_OPEN);
+    GtkApplication *app = gtk_application_new("com.example.kmeans", G_APPLICATION_HANDLES_COMMAND_LINE);
     g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
-    g_signal_connect(app, "open", G_CALLBACK(open_app), NULL);
+    g_signal_connect(app, "command-line", G_CALLBACK(on_command_line), NULL);
 
     int status = g_application_run(G_APPLICATION(app), argc, argv);
 
